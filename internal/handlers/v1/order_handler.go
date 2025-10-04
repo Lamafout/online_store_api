@@ -22,8 +22,8 @@ func NewOrderHandler(service *services.OrderService) *OrderHandler {
 func (h *OrderHandler) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", h.CreateOrder)
-	r.Post("/batch-create", h.BatchCreateOrders) // Новая ручка
-	r.Post("/query", h.QueryOrders) // Новая ручка
+	r.Post("/batch-create", h.BatchCreateOrders)
+	r.Post("/query", h.QueryOrders)
 	r.Get("/{id}", h.GetOrder)
 	return r
 }
@@ -33,8 +33,8 @@ func (h *OrderHandler) Routes() chi.Router {
 // @Tags Orders
 // @Accept json
 // @Produce json 
-// @Param order body models.Order true "Order data"
-// @Success 201 {object} models.Order
+// @Param order body common.Order true "Order data"
+// @Success 201 {object} common.Order
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /orders [post]
@@ -60,8 +60,8 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 // @Tags Orders
 // @Accept json
 // @Produce json
-// @Param request body models.V1CreateOrderRequest true "Orders data"
-// @Success 201 {object} models.V1CreateOrderResponse
+// @Param request body dto.V1CreateOrderRequest true "Orders data"
+// @Success 201 {object} dto.V1CreateOrderResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /orders/batch-create [post]
@@ -102,7 +102,6 @@ func (h *OrderHandler) BatchCreateOrders(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Конвертируем обратно в response
 	responseOrders := make([]common.Order, len(createdOrders))
 	for i, order := range createdOrders {
 		responseOrders[i] = *order
@@ -122,8 +121,8 @@ func (h *OrderHandler) BatchCreateOrders(w http.ResponseWriter, r *http.Request)
 // @Tags Orders
 // @Accept json
 // @Produce json
-// @Param request body models.V1QueryOrdersRequest true "Query filters"
-// @Success 200 {object} models.V1QueryOrdersResponse
+// @Param request body dto.V1QueryOrdersRequest true "Query filters"
+// @Success 200 {object} dto.V1QueryOrdersResponse
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /orders/query [post]
@@ -134,7 +133,6 @@ func (h *OrderHandler) QueryOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Валидация базовых параметров
 	if req.Page != nil && *req.Page < 1 {
 		http.Error(w, `{"error": "Page must be greater than 0"}`, http.StatusBadRequest)
 		return
@@ -167,7 +165,7 @@ func (h *OrderHandler) QueryOrders(w http.ResponseWriter, r *http.Request) {
 // @Tags Orders
 // @Produce json
 // @Param id path int true "Order ID"
-// @Success 200 {object} models.Order
+// @Success 200 {object} common.Order
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /orders/{id} [get]

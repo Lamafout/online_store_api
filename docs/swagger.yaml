@@ -1,6 +1,6 @@
 basePath: /api/v1
 definitions:
-  models.Order:
+  common.Order:
     properties:
       created_at:
         type: string
@@ -13,7 +13,7 @@ definitions:
         type: integer
       items:
         items:
-          $ref: '#/definitions/models.OrderItem'
+          $ref: '#/definitions/common.OrderItem'
         type: array
       total_price_cents:
         type: integer
@@ -30,7 +30,7 @@ definitions:
     - total_price_cents
     - total_price_currency
     type: object
-  models.OrderItem:
+  common.OrderItem:
     properties:
       created_at:
         type: string
@@ -64,6 +64,97 @@ definitions:
     - product_url
     - quantity
     type: object
+  dto.V1CreateOrder:
+    properties:
+      customer_id:
+        type: integer
+      delivery_address:
+        maxLength: 255
+        type: string
+      order_items:
+        items:
+          $ref: '#/definitions/dto.V1CreateOrderItem'
+        type: array
+      total_price_cents:
+        type: integer
+      total_price_currency:
+        enum:
+        - USD
+        - EUR
+        type: string
+    required:
+    - customer_id
+    - delivery_address
+    - order_items
+    - total_price_cents
+    - total_price_currency
+    type: object
+  dto.V1CreateOrderItem:
+    properties:
+      price_cents:
+        type: integer
+      price_currency:
+        enum:
+        - USD
+        - EUR
+        type: string
+      product_id:
+        type: integer
+      product_title:
+        maxLength: 255
+        type: string
+      product_url:
+        type: string
+      quantity:
+        type: integer
+    required:
+    - price_cents
+    - price_currency
+    - product_id
+    - product_title
+    - product_url
+    - quantity
+    type: object
+  dto.V1CreateOrderRequest:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/dto.V1CreateOrder'
+        type: array
+    required:
+    - orders
+    type: object
+  dto.V1CreateOrderResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/common.Order'
+        type: array
+    type: object
+  dto.V1QueryOrdersRequest:
+    properties:
+      customer_ids:
+        items:
+          type: integer
+        type: array
+      ids:
+        items:
+          type: integer
+        type: array
+      include_order_items:
+        type: boolean
+      page:
+        type: integer
+      page_size:
+        type: integer
+    type: object
+  dto.V1QueryOrdersResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/common.Order'
+        type: array
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -82,14 +173,14 @@ paths:
         name: order
         required: true
         schema:
-          $ref: '#/definitions/models.Order'
+          $ref: '#/definitions/common.Order'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/models.Order'
+            $ref: '#/definitions/common.Order'
         "400":
           description: Bad Request
           schema:
@@ -120,7 +211,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Order'
+            $ref: '#/definitions/common.Order'
         "400":
           description: Bad Request
           schema:
@@ -134,6 +225,74 @@ paths:
               type: string
             type: object
       summary: Get an order by ID
+      tags:
+      - Orders
+  /orders/batch-create:
+    post:
+      consumes:
+      - application/json
+      description: Creates multiple orders in batch
+      parameters:
+      - description: Orders data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.V1CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.V1CreateOrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Batch create orders
+      tags:
+      - Orders
+  /orders/query:
+    post:
+      consumes:
+      - application/json
+      description: Query orders with filters
+      parameters:
+      - description: Query filters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.V1QueryOrdersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.V1QueryOrdersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Query orders
       tags:
       - Orders
 swagger: "2.0"
