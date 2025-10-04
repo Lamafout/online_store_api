@@ -14,8 +14,6 @@ type UnitOfWork struct {
 	db            *sqlx.DB
 	tx            *sqlx.Tx
 	currentDB     interfaces.DBExecuter
-	orderRepo     interfaces.IOrderRepository
-	orderItemRepo interfaces.IOrderItemRepository
 	isTransaction bool
 }
 
@@ -30,18 +28,12 @@ func NewUnitOfWork(db *sqlx.DB) *UnitOfWork {
 
 // GetOrderRepo lazily initializes and returns the OrderRepository
 func (u *UnitOfWork) GetOrderRepo() interfaces.IOrderRepository {
-	if u.orderRepo == nil {
-		u.orderRepo = repositories.NewOrderRepository(u.currentDB)
-	}
-	return u.orderRepo
+	return repositories.NewOrderRepository(u.currentDB)
 }
 
 // GetOrderItemRepo lazily initializes and returns the OrderItemRepository
 func (u *UnitOfWork) GetOrderItemRepo() interfaces.IOrderItemRepository {
-	if u.orderItemRepo == nil {
-		u.orderItemRepo = repositories.NewOrderItemRepository(u.currentDB)
-	}
-	return u.orderItemRepo
+	return repositories.NewOrderItemRepository(u.currentDB)
 }
 
 // Begin starts a new transaction
