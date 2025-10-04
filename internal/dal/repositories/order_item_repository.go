@@ -3,9 +3,10 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	"github.com/Lamafout/online-store-api/internal/dal/models"
 	"github.com/Lamafout/online-store-api/internal/dal/interfaces"
+	"github.com/Lamafout/online-store-api/internal/dal/models"
 )
 
 // OrderItemRepository handles database operations for order items
@@ -22,10 +23,10 @@ func NewOrderItemRepository(db interfaces.DBExecuter) *OrderItemRepository {
 func (r *OrderItemRepository) CreateOrderItem(ctx context.Context, item *models.V1OrderItemDal) error {
 	query := `
 		INSERT INTO order_items (order_id, product_id, quantity, product_title, product_url, price_cents, price_currency, created_at, updated_at)
-		VALUES (:order_id, :product_id, :quantity, :product_title, :product_url, :price_cents, :price_currency, :created_at, :updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id`
 	var id int64
-	err := r.db.QueryRowxContext(ctx, query, item).Scan(&id)
+	err := r.db.QueryRowxContext(ctx, query, item.OrderID, item.ProductID, item.Quantity, item.ProductTitle, item.ProductURL, item.PriceCents, item.PriceCurrency, item.CreatedAt, item.UpdatedAt).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("failed to create order item: %w", err)
 	}
@@ -33,12 +34,24 @@ func (r *OrderItemRepository) CreateOrderItem(ctx context.Context, item *models.
 	return nil
 }
 
-// BulkInsertOrderItems inserts multiple order items using the v1_order_item composite type
+// BulkInsertOrderItems inserts multiple order items
 func (r *OrderItemRepository) BulkInsertOrderItems(ctx context.Context, items []models.QueryOrderItemsDalModel) error {
-	query := `
+	if len(items) == 0 {
+		return nil
+	}
+
+	// Build VALUES clause
+	var values []interface{}
+	var placeholders []string
+	for i, item := range items {
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)", i*9+1, i*9+2, i*9+3, i*9+4, i*9+5, i*9+6, i*9+7, i*9+8, i*9+9))
+		values = append(values, item.OrderID, item.ProductID, item.Quantity, item.ProductTitle, item.ProductURL, item.PriceCents, item.PriceCurrency, item.CreatedAt, item.UpdatedAt)
+	}
+
+	query := fmt.Sprintf(`
 		INSERT INTO order_items (order_id, product_id, quantity, product_title, product_url, price_cents, price_currency, created_at, updated_at)
-		SELECT * FROM UNNEST($1::v1_order_item[])`
-	_, err := r.db.ExecContext(ctx, query, items)
+		VALUES %s`, strings.Join(placeholders, ", "))
+	_, err := r.db.ExecContext(ctx, query, values...)
 	if err != nil {
 		return fmt.Errorf("failed to bulk insert order items: %w", err)
 	}

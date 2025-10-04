@@ -3,9 +3,10 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	"github.com/Lamafout/online-store-api/internal/dal/models"
 	"github.com/Lamafout/online-store-api/internal/dal/interfaces"
+	"github.com/Lamafout/online-store-api/internal/dal/models"
 )
 
 // OrderRepository handles database operations for orders
@@ -22,10 +23,10 @@ func NewOrderRepository(db interfaces.DBExecuter) *OrderRepository {
 func (r *OrderRepository) CreateOrder(ctx context.Context, order *models.V1OrderDal) error {
 	query := `
 		INSERT INTO orders (customer_id, delivery_address, total_price_cents, total_price_currency, created_at, updated_at)
-		VALUES (:customer_id, :delivery_address, :total_price_cents, :total_price_currency, :created_at, :updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`
 	var id int64
-	err := r.db.QueryRowxContext(ctx, query, order).Scan(&id)
+	err := r.db.QueryRowxContext(ctx, query, order.CustomerID, order.DeliveryAddress, order.TotalPriceCents, order.TotalPriceCurrency, order.CreatedAt, order.UpdatedAt).Scan(&id)
 	if err != nil {
 		return fmt.Errorf("failed to create order: %w", err)
 	}
@@ -35,10 +36,22 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *models.V1Order
 
 // BulkInsertOrders inserts multiple orders using the v1_order composite type
 func (r *OrderRepository) BulkInsertOrders(ctx context.Context, orders []models.QueryOrdersDalModel) error {
-	query := `
+	if len(orders) == 0 {
+		return nil
+	}
+
+	// Build VALUES clause
+	var values []interface{}
+	var placeholders []string
+	for i, order := range orders {
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", i*6+1, i*6+2, i*6+3, i*6+4, i*6+5, i*6+6))
+		values = append(values, order.CustomerID, order.DeliveryAddress, order.TotalPriceCents, order.TotalPriceCurrency, order.CreatedAt, order.UpdatedAt)
+	}
+
+	query := fmt.Sprintf(`
 		INSERT INTO orders (customer_id, delivery_address, total_price_cents, total_price_currency, created_at, updated_at)
-		SELECT * FROM UNNEST($1::v1_order[])`
-	_, err := r.db.ExecContext(ctx, query, orders)
+		VALUES %s`, strings.Join(placeholders, ", "))
+	_, err := r.db.ExecContext(ctx, query, values...)
 	if err != nil {
 		return fmt.Errorf("failed to bulk insert orders: %w", err)
 	}
