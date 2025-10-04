@@ -1,0 +1,139 @@
+basePath: /api/v1
+definitions:
+  models.Order:
+    properties:
+      created_at:
+        type: string
+      customer_id:
+        type: integer
+      delivery_address:
+        maxLength: 255
+        type: string
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/models.OrderItem'
+        type: array
+      total_price_cents:
+        type: integer
+      total_price_currency:
+        enum:
+        - USD
+        - EUR
+        type: string
+      updated_at:
+        type: string
+    required:
+    - customer_id
+    - delivery_address
+    - total_price_cents
+    - total_price_currency
+    type: object
+  models.OrderItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      order_id:
+        type: integer
+      price_cents:
+        type: integer
+      price_currency:
+        enum:
+        - USD
+        - EUR
+        type: string
+      product_id:
+        type: integer
+      product_title:
+        maxLength: 255
+        type: string
+      product_url:
+        type: string
+      quantity:
+        type: integer
+      updated_at:
+        type: string
+    required:
+    - price_cents
+    - price_currency
+    - product_id
+    - product_title
+    - product_url
+    - quantity
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for managing orders in an online store.
+  title: Online Store API
+  version: "1.0"
+paths:
+  /orders:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new order with items
+      parameters:
+      - description: Order data
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/models.Order'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new order
+      tags:
+      - Orders
+  /orders/{id}:
+    get:
+      description: Retrieves an order with its items by ID
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get an order by ID
+      tags:
+      - Orders
+swagger: "2.0"

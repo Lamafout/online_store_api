@@ -25,7 +25,7 @@ func TestOrderItemRepository(t *testing.T) {
 		t.Fatal("APP_ENV is not set in .env file")
 	}
 
-	cfg, err := config.LoadConfig(environment)
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}

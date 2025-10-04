@@ -4,7 +4,6 @@ import (
 	_"context"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose/v3"
@@ -13,12 +12,7 @@ import (
 )
 
 func main() {
-	environment := os.Getenv("APP_ENV")
-	if environment == "" {
-		log.Fatal("APP_ENV is not set")
-	}
-
-	cfg, err := config.LoadConfig(environment)
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

@@ -25,6 +25,16 @@ func (h *OrderHandler) Routes() chi.Router {
 	return r
 }
 
+// @Summary Create a new order
+// @Description Creates a new order with items
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Param order body models.Order true "Order data"
+// @Success 201 {object} models.Order
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /orders [post]
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var order models.Order
 	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
@@ -42,6 +52,15 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(order)
 }
 
+// @Summary Get an order by ID
+// @Description Retrieves an order with its items by ID
+// @Tags Orders
+// @Produce json
+// @Param id path int true "Order ID"
+// @Success 200 {object} models.Order
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /orders/{id} [get]
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)

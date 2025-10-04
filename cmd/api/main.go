@@ -12,14 +12,22 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
+
+	_ "github.com/Lamafout/online-store-api/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// @title Online Store API
+// @version 1.0
+// @description API for managing orders in an online store.
+// @host localhost:8080
+// @BasePath /api/v1
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Printf("No .env file found: %v", err)
 	}
 
-	cfg, err := config.LoadConfig("Development")
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -37,9 +45,10 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/orders", v1.NewOrderHandler(orderService).Routes())
 	})
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
-	log.Println("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	log.Printf("Starting server on :%s", cfg.ServerPort)
+	if err := http.ListenAndServe(":"+cfg.ServerPort, r); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
