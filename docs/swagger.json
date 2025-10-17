@@ -227,7 +227,8 @@
                     "type": "string"
                 },
                 "customer_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "delivery_address": {
                     "type": "string",
@@ -243,7 +244,8 @@
                     }
                 },
                 "total_price_cents": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "total_price_currency": {
                     "type": "string",
@@ -278,7 +280,8 @@
                     "type": "integer"
                 },
                 "price_cents": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "price_currency": {
                     "type": "string",
@@ -288,7 +291,8 @@
                     ]
                 },
                 "product_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "product_title": {
                     "type": "string",
@@ -298,7 +302,8 @@
                     "type": "string"
                 },
                 "quantity": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "updated_at": {
                     "type": "string"

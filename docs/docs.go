@@ -233,7 +233,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "customer_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "delivery_address": {
                     "type": "string",
@@ -249,7 +250,8 @@ const docTemplate = `{
                     }
                 },
                 "total_price_cents": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "total_price_currency": {
                     "type": "string",
@@ -284,7 +286,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "price_cents": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "price_currency": {
                     "type": "string",
@@ -294,7 +297,8 @@ const docTemplate = `{
                     ]
                 },
                 "product_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "product_title": {
                     "type": "string",
@@ -304,7 +308,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "quantity": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "updated_at": {
                     "type": "string"

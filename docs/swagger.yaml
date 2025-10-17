@@ -5,6 +5,7 @@ definitions:
       created_at:
         type: string
       customer_id:
+        minimum: 0
         type: integer
       delivery_address:
         maxLength: 255
@@ -16,6 +17,7 @@ definitions:
           $ref: '#/definitions/common.OrderItem'
         type: array
       total_price_cents:
+        minimum: 0
         type: integer
       total_price_currency:
         enum:
@@ -39,6 +41,7 @@ definitions:
       order_id:
         type: integer
       price_cents:
+        minimum: 0
         type: integer
       price_currency:
         enum:
@@ -46,6 +49,7 @@ definitions:
         - EUR
         type: string
       product_id:
+        minimum: 0
         type: integer
       product_title:
         maxLength: 255
@@ -53,6 +57,7 @@ definitions:
       product_url:
         type: string
       quantity:
+        minimum: 0
         type: integer
       updated_at:
         type: string

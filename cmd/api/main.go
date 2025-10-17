@@ -6,8 +6,7 @@ import (
 
 	"github.com/Lamafout/online-store-api/internal/bll/services"
 	"github.com/Lamafout/online-store-api/internal/config"
-	"github.com/Lamafout/online-store-api/internal/dal/unit_of_work"
-	"github.com/Lamafout/online-store-api/internal/handlers/v1"
+	v1 "github.com/Lamafout/online-store-api/internal/handlers/v1"
 	"github.com/go-chi/chi/v5"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -38,12 +37,11 @@ func main() {
 	}
 	defer db.Close()
 
-	uow := dal.NewUnitOfWork(db)
-	orderService := services.NewOrderService(uow)
+	orderService := services.NewOrderService()
 
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Mount("/orders", v1.NewOrderHandler(orderService).Routes())
+		r.Mount("/orders", v1.NewOrderHandler(db, orderService).Routes())
 	})
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
