@@ -22,9 +22,9 @@ type V1CreateOrderItem struct {
 }
 
 type V1QueryOrdersRequest struct {
-	IDs               []int64 `json:"ids"`
-	CustomerIDs       []int64 `json:"customer_ids"`
-	Page              *int    `json:"page"`
-	PageSize          *int    `json:"page_size"`
+	IDs               []int64 `json:"ids" validate:"omitempty,dive,gt=0"`
+	CustomerIDs       []int64 `json:"customer_ids" validate:"omitempty,dive,gt=0"`
+	Page              *int    `json:"page" validate:"gt=0"`
+	PageSize          *int    `json:"page_size" validate:"gt=0"`
 	IncludeOrderItems bool    `json:"include_order_items"`
 }

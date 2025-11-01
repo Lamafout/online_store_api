@@ -10,6 +10,7 @@ import (
 	"github.com/Lamafout/online-store-api/internal/bll/services"
 	dal "github.com/Lamafout/online-store-api/internal/dal/unit_of_work"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -52,7 +53,7 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error": "Failed to start transaction"}`, http.StatusInternalServerError)
 		return
 	}
-	
+
 	defer uow.Rollback()
 
 	var order common.Order
@@ -99,6 +100,13 @@ func (h *OrderHandler) BatchCreateOrders(w http.ResponseWriter, r *http.Request)
 
 	var req dto.V1CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	validate := validator.New()
+
+	if err := validate.Struct(req); err != nil {
 		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
@@ -178,6 +186,13 @@ func (h *OrderHandler) QueryOrders(w http.ResponseWriter, r *http.Request) {
 
 	if req.PageSize != nil && *req.PageSize < 1 {
 		http.Error(w, `{"error": "PageSize must be greater than 0"}`, http.StatusBadRequest)
+		return
+	}
+
+	validate := validator.New()
+
+	if err := validate.Struct(req); err != nil {
+		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
 
