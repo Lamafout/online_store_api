@@ -2,19 +2,29 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"log"
+	"os"
+
 	"github.com/joho/godotenv"
 )
 
 type DbSettings struct {
-	ConnectionString           string
+	ConnectionString          string
 	MigrationConnectionString string
 }
 
+type RabbitMqSettings struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Queue    string
+}
+
 type Config struct {
-	DbSettings DbSettings
-	ServerPort string
+	DbSettings       DbSettings
+	RabbitMqSettings RabbitMqSettings
+	ServerPort       string
 }
 
 func LoadConfig() (*Config, error) {
@@ -30,7 +40,12 @@ func LoadConfig() (*Config, error) {
 	port := getEnv("DB_PORT", "5432")
 	host := getEnv("DB_HOST", "localhost")
 	serverPort := getEnv("SERVER_PORT", "8080")
-
+	rabbitHost := getEnv("RABBIT_HOST", "localhost")
+	rabbitPort := getEnv("RABBIT_PORT", "5672")
+	rabbitUser := getEnv("RABBIT_USER", "guest")
+	rabbitPassword := getEnv("RABBIT_PASSWORD", "guest")
+	rabbitQueue := getEnv("RABBIT_QUEUE", "oms.order.created")
+	
 	if user == "" || password == "" || dbName == "" || port == "" || host == "" || serverPort == "" {
 		return nil, fmt.Errorf("missing required environment variables")
 	}
@@ -39,8 +54,15 @@ func LoadConfig() (*Config, error) {
 	migrationConnString := connString
 	return &Config{
 		DbSettings: DbSettings{
-			ConnectionString:           connString,
+			ConnectionString:          connString,
 			MigrationConnectionString: migrationConnString,
+		},
+		RabbitMqSettings: RabbitMqSettings{
+			Host:     rabbitHost,
+			Port:     rabbitPort,
+			User:     rabbitUser,
+			Password: rabbitPassword,
+			Queue:    rabbitQueue,
 		},
 		ServerPort: serverPort,
 	}, nil
