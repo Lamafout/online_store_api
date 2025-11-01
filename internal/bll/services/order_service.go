@@ -7,122 +7,43 @@ import (
 
 	core "github.com/Lamafout/online-store-api/core/models/common"
 	"github.com/Lamafout/online-store-api/core/models/dto"
+	"github.com/Lamafout/online-store-api/core/models/messages"
+	"github.com/Lamafout/online-store-api/internal/config"
 	"github.com/Lamafout/online-store-api/internal/dal/models"
-	"github.com/Lamafout/online-store-api/internal/dal/unit_of_work"
+	dal "github.com/Lamafout/online-store-api/internal/dal/unit_of_work"
 	"github.com/go-playground/validator/v10"
+	"github.com/jmoiron/sqlx"
 )
 
 type OrderService struct {
-	validate *validator.Validate
+	validate  *validator.Validate
+	publisher RabbitPublisher
+	rs        config.RabbitMqSettings
+	db        *sqlx.DB
 }
 
-func NewOrderService() *OrderService {
+func NewOrderService(publisher RabbitPublisher, rs config.RabbitMqSettings, db *sqlx.DB) *OrderService {
 	return &OrderService{
-		validate: validator.New(),
+		validate:  validator.New(),
+		publisher: publisher,
+		rs:        rs,
+		db:        db,
 	}
-}
-
-func (s *OrderService) CreateOrder(
-	ctx context.Context,
-	uow *dal.UnitOfWork,
-	order *core.Order,
-) error {
-	if err := s.validate.Struct(order); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
-	}
-
-	dalOrder := &models.V1OrderDal{
-		CustomerID:         order.CustomerID,
-		DeliveryAddress:    order.DeliveryAddress,
-		TotalPriceCents:    order.TotalPriceCents,
-		TotalPriceCurrency: order.TotalPriceCurrency,
-		CreatedAt:          time.Now(),
-		UpdatedAt:          time.Now(),
-	}
-
-	if err := uow.GetOrderRepo().CreateOrder(ctx, dalOrder); err != nil {
-		return fmt.Errorf("failed to create order: %w", err)
-	}
-	order.ID = dalOrder.ID
-
-	for i := range order.Items {
-		item := &order.Items[i]
-		if err := s.validate.Struct(item); err != nil {
-			return fmt.Errorf("validation failed for item: %w", err)
-		}
-
-		dalItem := &models.V1OrderItemDal{
-			OrderID:       dalOrder.ID,
-			ProductID:     item.ProductID,
-			Quantity:      item.Quantity,
-			ProductTitle:  item.ProductTitle,
-			ProductURL:    item.ProductURL,
-			PriceCents:    item.PriceCents,
-			PriceCurrency: item.PriceCurrency,
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
-		}
-
-		if err := uow.GetOrderItemRepo().CreateOrderItem(ctx, dalItem); err != nil {
-			return fmt.Errorf("failed to create order item: %w", err)
-		}
-
-		item.ID = dalItem.ID
-		item.OrderID = dalItem.OrderID
-	}
-
-	return nil
-}
-
-func (s *OrderService) GetOrder(
-	ctx context.Context,
-	uow *dal.UnitOfWork,
-	id int64,
-) (*core.Order, error) {
-	dalOrder, err := uow.GetOrderRepo().GetOrderByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get order: %w", err)
-	}
-
-	dalItems, err := uow.GetOrderItemRepo().GetOrderItemsByOrderID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get order items: %w", err)
-	}
-
-	order := &core.Order{
-		ID:                 dalOrder.ID,
-		CustomerID:         dalOrder.CustomerID,
-		DeliveryAddress:    dalOrder.DeliveryAddress,
-		TotalPriceCents:    dalOrder.TotalPriceCents,
-		TotalPriceCurrency: dalOrder.TotalPriceCurrency,
-		CreatedAt:          dalOrder.CreatedAt,
-		UpdatedAt:          dalOrder.UpdatedAt,
-		Items:              make([]core.OrderItem, len(dalItems)),
-	}
-
-	for i, item := range dalItems {
-		order.Items[i] = core.OrderItem{
-			ID:            item.ID,
-			OrderID:       item.OrderID,
-			ProductID:     item.ProductID,
-			Quantity:      item.Quantity,
-			ProductTitle:  item.ProductTitle,
-			ProductURL:    item.ProductURL,
-			PriceCents:    item.PriceCents,
-			PriceCurrency: item.PriceCurrency,
-			CreatedAt:     item.CreatedAt,
-			UpdatedAt:     item.UpdatedAt,
-		}
-	}
-
-	return order, nil
 }
 
 func (s *OrderService) BatchCreateOrders(
 	ctx context.Context,
-	uow *dal.UnitOfWork,
 	orders []*core.Order,
 ) ([]*core.Order, error) {
+
+	uow := dal.NewUnitOfWork(s.db)
+
+	if err := uow.Begin(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
+	}
+
+	defer uow.Rollback()
+
 	if len(orders) == 0 {
 		return nil, fmt.Errorf("orders list cannot be empty")
 	}
@@ -186,14 +107,57 @@ func (s *OrderService) BatchCreateOrders(
 		}
 	}
 
+	var msgs []any
+	for _, order := range orders {
+		msg := messages.OrderCreatedMessage{
+			ID:                 order.ID,
+			CustomerID:         order.CustomerID,
+			DeliveryAddress:    order.DeliveryAddress,
+			TotalPriceCents:    order.TotalPriceCents,
+			TotalPriceCurrency: order.TotalPriceCurrency,
+			CreatedAt:          order.CreatedAt,
+		}
+
+		for _, item := range order.Items {
+			msg.OrderItems = append(msg.OrderItems, messages.OrderItemMessage{
+				ID:            item.ID,
+				OrderID:       item.OrderID,
+				ProductID:     item.ProductID,
+				ProductTitle:  item.ProductTitle,
+				ProductURL:    item.ProductURL,
+				Quantity:      item.Quantity,
+				PriceCents:    item.PriceCents,
+				PriceCurrency: item.PriceCurrency,
+			})
+		}
+
+		msgs = append(msgs, msg)
+	}
+
+	if err := s.publisher.Publish(ctx, msgs, s.rs.OrderCreateQueue); err != nil {
+		return nil, fmt.Errorf("failed to publish order-created messages: %w", err)
+	}
+
+	if err := uow.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
+	}
+
 	return orders, nil
 }
 
 func (s *OrderService) QueryOrders(
 	ctx context.Context,
-	uow *dal.UnitOfWork,
 	req *dto.V1QueryOrdersRequest,
 ) ([]*core.Order, error) {
+
+	uow := dal.NewUnitOfWork(s.db)
+
+	if err := uow.Begin(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
+	}
+
+	defer uow.Rollback()
+
 	dalReq := &models.QueryOrdersDalModel{
 		IDs:         req.IDs,
 		CustomerIDs: req.CustomerIDs,
@@ -269,6 +233,10 @@ func (s *OrderService) QueryOrders(
 		}
 
 		orders[i] = order
+	}
+
+	if err := uow.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
 
 	return orders, nil

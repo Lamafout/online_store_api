@@ -50,6 +50,17 @@ CREATE TYPE v1_order_item AS (
     updated_at TIMESTAMP WITH TIME ZONE
 );
 
+CREATE TABLE IF NOT EXISTS audit_log_order (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    order_item_id BIGINT NOT NULL,
+    customer_id BIGINT NOT NULL,
+    order_status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
 -- +goose Down
 DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS orders;

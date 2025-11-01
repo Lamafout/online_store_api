@@ -3,78 +3,30 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/Lamafout/online-store-api/core/models/common"
 	"github.com/Lamafout/online-store-api/core/models/dto"
 	"github.com/Lamafout/online-store-api/internal/bll/services"
-	dal "github.com/Lamafout/online-store-api/internal/dal/unit_of_work"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/jmoiron/sqlx"
 )
 
 type OrderHandler struct {
-	db      *sqlx.DB
 	service *services.OrderService
 }
 
 func NewOrderHandler(db *sqlx.DB, service *services.OrderService) *OrderHandler {
 	return &OrderHandler{
-		db:      db,
 		service: service,
 	}
 }
 
 func (h *OrderHandler) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", h.CreateOrder)
 	r.Post("/batch-create", h.BatchCreateOrders)
 	r.Post("/query", h.QueryOrders)
-	r.Get("/{id}", h.GetOrder)
 	return r
-}
-
-// @Summary Create a new order
-// @Description Creates a new order with items
-// @Tags Orders
-// @Accept json
-// @Produce json
-// @Param order body common.Order true "Order data"
-// @Success 201 {object} common.Order
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /orders [post]
-func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	uow := dal.NewUnitOfWork(h.db)
-
-	if err := uow.Begin(ctx); err != nil {
-		http.Error(w, `{"error": "Failed to start transaction"}`, http.StatusInternalServerError)
-		return
-	}
-
-	defer uow.Rollback()
-
-	var order common.Order
-	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
-		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.service.CreateOrder(ctx, uow, &order); err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
-		return
-	}
-
-	if err := uow.Commit(); err != nil {
-		http.Error(w, `{"error": "Failed to commit transaction"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(order)
 }
 
 // @Summary Batch create orders
@@ -89,14 +41,6 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 // @Router /orders/batch-create [post]
 func (h *OrderHandler) BatchCreateOrders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	uow := dal.NewUnitOfWork(h.db)
-
-	if err := uow.Begin(ctx); err != nil {
-		http.Error(w, `{"error": "Failed to start transaction"}`, http.StatusInternalServerError)
-		return
-	}
-
-	defer uow.Rollback()
 
 	var req dto.V1CreateOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -134,16 +78,12 @@ func (h *OrderHandler) BatchCreateOrders(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	createdOrders, err := h.service.BatchCreateOrders(ctx, uow, orders)
+	createdOrders, err := h.service.BatchCreateOrders(ctx, orders)
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
 		return
 	}
 
-	if err := uow.Commit(); err != nil {
-		http.Error(w, `{"error": "Failed to commit transaction"}`, http.StatusInternalServerError)
-		return
-	}
 
 	responseOrders := make([]common.Order, len(createdOrders))
 	for i, order := range createdOrders {
@@ -171,7 +111,6 @@ func (h *OrderHandler) BatchCreateOrders(w http.ResponseWriter, r *http.Request)
 // @Router /orders/query [post]
 func (h *OrderHandler) QueryOrders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	uow := dal.NewUnitOfWork(h.db)
 
 	var req dto.V1QueryOrdersRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -196,7 +135,7 @@ func (h *OrderHandler) QueryOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, err := h.service.QueryOrders(ctx, uow, &req)
+	orders, err := h.service.QueryOrders(ctx, &req)
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
 		return
@@ -211,34 +150,4 @@ func (h *OrderHandler) QueryOrders(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
-}
-
-// @Summary Get an order by ID
-// @Description Retrieves an order with its items by ID
-// @Tags Orders
-// @Produce json
-// @Param id path int true "Order ID"
-// @Success 200 {object} common.Order
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /orders/{id} [get]
-func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	uow := dal.NewUnitOfWork(h.db)
-
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, `{"error": "Invalid order ID"}`, http.StatusBadRequest)
-		return
-	}
-
-	order, err := h.service.GetOrder(ctx, uow, id)
-	if err != nil {
-		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(order)
 }

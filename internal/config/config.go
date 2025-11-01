@@ -14,11 +14,11 @@ type DbSettings struct {
 }
 
 type RabbitMqSettings struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Queue    string
+	Host             string
+	Port             string
+	User             string
+	Password         string
+	OrderCreateQueue string
 }
 
 type Config struct {
@@ -44,8 +44,8 @@ func LoadConfig() (*Config, error) {
 	rabbitPort := getEnv("RABBIT_PORT", "5672")
 	rabbitUser := getEnv("RABBIT_USER", "guest")
 	rabbitPassword := getEnv("RABBIT_PASSWORD", "guest")
-	rabbitQueue := getEnv("RABBIT_QUEUE", "oms.order.created")
-	
+	rabbitQueue := getEnv("RABBIT_ORDER_CREATED_QUEUE", "oms.order.created")
+
 	if user == "" || password == "" || dbName == "" || port == "" || host == "" || serverPort == "" {
 		return nil, fmt.Errorf("missing required environment variables")
 	}
@@ -58,11 +58,11 @@ func LoadConfig() (*Config, error) {
 			MigrationConnectionString: migrationConnString,
 		},
 		RabbitMqSettings: RabbitMqSettings{
-			Host:     rabbitHost,
-			Port:     rabbitPort,
-			User:     rabbitUser,
-			Password: rabbitPassword,
-			Queue:    rabbitQueue,
+			Host:             rabbitHost,
+			Port:             rabbitPort,
+			User:             rabbitUser,
+			Password:         rabbitPassword,
+			OrderCreateQueue: rabbitQueue,
 		},
 		ServerPort: serverPort,
 	}, nil
