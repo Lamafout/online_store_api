@@ -36,6 +36,10 @@ func (u *UnitOfWork) GetOrderItemRepo() interfaces.IOrderItemRepository {
 	return repositories.NewOrderItemRepository(u.currentDB)
 }
 
+func (u *UnitOfWork) GetAuditLogOrderRepo() interfaces.IAuditLogOrderRepository {
+	return repositories.NewAuditLogOrderRepository(u.currentDB)
+}
+
 // Begin starts a new transaction
 func (u *UnitOfWork) Begin(ctx context.Context) error {
 	if u.isTransaction {

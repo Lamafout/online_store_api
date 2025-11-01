@@ -19,3 +19,7 @@ type IOrderItemRepository interface {
 	GetOrderItemsByOrderID(ctx context.Context, orderID int64) ([]models.V1OrderItemDal, error)
 	QueryOrderItems(ctx context.Context, req *models.QueryOrderItemsDalModel) ([]models.V1OrderItemDal, error)
 }
+
+type IAuditLogOrderRepository interface {
+	CreateAuditLog(ctx context.Context, log *models.V1AuditLogOrderDal) error
+}
