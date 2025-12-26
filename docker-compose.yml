@@ -1,46 +1,112 @@
 services:
-  postgres:
-    image: postgres:latest
+  oms-db:
+    image: postgres:16
+    container_name: oms-db
     environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_HOST_AUTH_METHOD=md5
-      - POSTGRES_INITDB_ARGS=--auth=md5
+      POSTGRES_DB: online_store_oms
+      POSTGRES_USER: oms_user
+      POSTGRES_PASSWORD: oms_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data/
-      - ./initdb.d:/docker-entrypoint-initdb.d
+      - oms_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U oms_user -d online_store_oms"]
+      interval: 5s
       timeout: 5s
       retries: 5
 
-  pgbouncer:
-    image: edoburu/pgbouncer:latest
+  audit-db:
+    image: postgres:16
+    container_name: audit-db
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - ADMIN_USERS=postgres,admin
-      - POOL_MODE=transaction
+      POSTGRES_DB: online_store_audit
+      POSTGRES_USER: audit_user
+      POSTGRES_PASSWORD: audit_password
     ports:
-      - "15432:5432"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "5434:5432"
+    volumes:
+      - audit_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audit_user -d online_store_audit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  oms-migrator:
+    build:
+      context: .
+      dockerfile: ./services/oms/Dockerfile
+    command: ["/app/oms-migrator"]
+    environment:
+      OMS_DB_USER: oms_user
+      OMS_DB_PASSWORD: oms_password
+      OMS_DB_NAME: online_store_oms
+      OMS_DB_HOST: oms-db
+      OMS_DB_PORT: 5432
+    depends_on:
+      oms-db:
+        condition: service_healthy
+
+
+  audit-migrator:
+    build:
+      context: .
+      dockerfile: ./services/audit/Dockerfile
+    command: ["/app/audit-migrator"]
+    environment:
+      AUDIT_DB_USER: audit_user
+      AUDIT_DB_PASSWORD: audit_password
+      AUDIT_DB_NAME: online_store_audit
+      AUDIT_DB_HOST: audit-db
+      AUDIT_DB_PORT: 5432
+    depends_on:
+      audit-db:
+        condition: service_healthy
+
+  oms-api:
+    build:
+      context: .
+      dockerfile: ./services/oms/Dockerfile
+    command: ["/app/oms-api"]
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./services/oms/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    profiles:
+      - api
+
+  audit-consumer:
+    build:
+      context: .
+      dockerfile: ./services/audit/Dockerfile
+    command: ["/app/audit-consumer"]
+    env_file:
+      - ./services/audit/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    profiles:
+      - consumer
 
 volumes:
-  pgdata:
-  rabbitmq_data:
+  oms_db_data:
+  audit_db_data:
